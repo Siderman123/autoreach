@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoReach</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-btn { transition: all 0.15s; }
+        .tab-btn.active { background:#111827; color:#fff; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        .fade-in { animation: fadeIn 0.25s ease forwards; }
+        #auth-screen { background: #030712; }
+        #cl-sign-in { --cl-color-primary: #7c3aed; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Auth screen (Clerk mounts here) -->
+<div id="auth-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center px-6">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <span class="text-white font-bold text-xl">AutoReach</span>
+    </div>
+    <div id="clerk-mount"></div>
+</div>
+
+<!-- Paywall overlay (shown after auth if not subscribed) -->
+<div id="paywall-screen" class="fixed inset-0 z-40 bg-gray-950 hidden flex-col items-center justify-center px-6">
+    <div class="w-full max-w-md text-center">
+        <div class="w-16 h-16 bg-violet-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <h1 class="text-white font-bold text-3xl mb-2">AutoReach</h1>
+        <p class="text-gray-400 mb-8">Automated networking emails — on autopilot.<br>Set your filters once, we send every day.</p>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6 text-left space-y-3">
+            <div class="flex items-center gap-3 text-gray-300 text-sm">
+                <div class="w-5 h-5 bg-violet-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </div>
+                Filter by firm, title, school, and location
+            </div>
+            <div class="flex items-center gap-3 text-gray-300 text-sm">
+                <div class="w-5 h-5 bg-violet-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </div>
+                AI-personalized emails sent from your Gmail
+            </div>
+            <div class="flex items-center gap-3 text-gray-300 text-sm">
+                <div class="w-5 h-5 bg-violet-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </div>
+                Runs every morning automatically — no browser needed
+            </div>
+            <div class="flex items-center gap-3 text-gray-300 text-sm">
+                <div class="w-5 h-5 bg-violet-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </div>
+                Per-company limits so you never look spammy
+            </div>
+        </div>
+        <div class="flex items-baseline justify-center gap-1 mb-6">
+            <span class="text-4xl font-bold text-white">$49</span>
+            <span class="text-gray-400">/month</span>
+        </div>
+        <button onclick="subscribe()" id="subscribe-btn"
+            class="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-4 font-semibold text-base transition-colors">
+            Start Sending →
+        </button>
+        <p class="text-xs text-gray-600 mt-3">Cancel anytime. Powered by Stripe.</p>
+        <button onclick="signOut()" class="text-xs text-gray-700 hover:text-gray-500 mt-4 transition-colors">Sign out</button>
+    </div>
+</div>
+
+<!-- Processing payment overlay -->
+<div id="processing-screen" class="fixed inset-0 z-40 bg-gray-950 hidden flex-col items-center justify-center">
+    <div class="text-center">
+        <div class="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-white font-medium">Activating your account...</p>
+        <p class="text-gray-500 text-sm mt-1">This takes just a moment</p>
+    </div>
+</div>
+
+<!-- Setup overlay (shown after subscribe if no Gmail/name set) -->
+<div id="setup-screen" class="fixed inset-0 z-30 bg-gray-950/90 backdrop-blur-sm hidden flex-col items-center justify-center px-6">
+    <div class="w-full max-w-md">
+        <h2 class="text-white font-bold text-xl mb-1">One last thing</h2>
+        <p class="text-gray-500 text-sm mb-6">Connect your Gmail so we can send emails from your account.</p>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Your Name</label>
+                    <input type="text" id="s-name" placeholder="Jake Miller"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Gmail</label>
+                    <input type="email" id="s-gmail" placeholder="you@gmail.com"
+                        class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">Gmail App Password</label>
+                <input type="password" id="s-gmailpw" placeholder="xxxx xxxx xxxx xxxx"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500">
+                <p class="text-xs text-gray-600 mt-1">myaccount.google.com → Security → App passwords</p>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">
+                    Groq API Key <span class="text-gray-600 font-normal normal-case">(optional — free AI personalization)</span>
+                </label>
+                <input type="password" id="s-groq" placeholder="gsk_... — free at groq.com"
+                    class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500">
+            </div>
+            <p id="setup-err" class="text-red-400 text-sm hidden"></p>
+            <button onclick="setupSubmit()"
+                class="w-full bg-violet-600 hover:bg-violet-500 text-white rounded-xl py-3.5 font-semibold text-sm transition-colors">
+                Let's go →
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Main dashboard ─────────────────────────────────────────────────────── -->
+<header class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-violet-500 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <span class="font-bold text-gray-900">AutoReach</span>
+    </div>
+    <div class="flex items-center gap-3">
+        <span id="hdr-name" class="text-sm text-gray-500"></span>
+        <button onclick="openTab('settings')" class="text-xs text-gray-400 hover:text-gray-700">Settings</button>
+        <button onclick="signOut()" class="text-xs text-gray-400 hover:text-gray-700">Sign out</button>
+    </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-8 space-y-6">
+
+    <!-- Status card -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div id="status-indicator" class="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                    <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+                </div>
+                <div>
+                    <p id="status-label" class="text-lg font-bold text-gray-900">Ready</p>
+                    <p id="status-sub" class="text-sm text-gray-400 mt-0.5">Set your filters and template to get started</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-start" onclick="startCampaign(false)"
+                    class="bg-violet-600 hover:bg-violet-500 text-white rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors">
+                    Run Now
+                </button>
+                <button id="btn-dryrun" onclick="startCampaign(true)"
+                    class="border border-gray-200 text-gray-500 hover:text-gray-700 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors">
+                    Dry Run
+                </button>
+                <button id="btn-stop" onclick="stopCampaign()" class="hidden border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors">
+                    Stop
+                </button>
+            </div>
+        </div>
+        <div id="schedule-row" class="hidden mt-5 pt-5 border-t border-gray-50 grid grid-cols-4 gap-4 text-center">
+            <div><p class="text-xs text-gray-400 mb-1">Emails / Day</p><p id="sched-perday" class="text-base font-bold text-gray-900">—</p></div>
+            <div><p class="text-xs text-gray-400 mb-1">Per Company</p><p id="sched-perco" class="text-base font-bold text-gray-900">—</p></div>
+            <div><p class="text-xs text-gray-400 mb-1">Send Time</p><p id="sched-time" class="text-base font-bold text-gray-900">—</p></div>
+            <div><p class="text-xs text-gray-400 mb-1">Sent Today</p><p id="sched-today" class="text-base font-bold text-violet-600">0</p></div>
+        </div>
+    </div>
+
+    <!-- Campaign terminal -->
+    <div id="campaign-terminal" class="hidden bg-gray-950 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-red-500/60"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/60"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-green-500/60"></div>
+                <span class="text-gray-600 text-xs ml-2 font-mono">campaign output</span>
+            </div>
+            <button onclick="document.getElementById('campaign-terminal').classList.add('hidden')" class="text-gray-700 hover:text-gray-500 text-xs">✕ hide</button>
+        </div>
+        <div id="campaign-output" class="font-mono text-xs space-y-0.5 leading-5 max-h-52 overflow-y-auto"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+            <p class="text-xs text-gray-400 font-medium uppercase tracking-widest">Sent</p>
+            <p id="stat-sent" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+            <p class="text-xs text-gray-400 font-medium uppercase tracking-widest">Today</p>
+            <p id="stat-today" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+            <p class="text-xs text-gray-400 font-medium uppercase tracking-widest">Companies</p>
+            <p id="stat-companies" class="text-3xl font-bold text-gray-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm text-center">
+            <p class="text-xs text-gray-400 font-medium uppercase tracking-widest">Remaining</p>
+            <p id="stat-remaining" class="text-3xl font-bold text-violet-600 mt-1">—</p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="flex border-b border-gray-100 p-1 gap-1 bg-gray-50">
+            <button onclick="openTab('filters')"  id="tab-filters"   class="tab-btn active flex-1 py-2 rounded-xl text-sm font-medium text-center">Filters</button>
+            <button onclick="openTab('template')" id="tab-template"  class="tab-btn flex-1 py-2 rounded-xl text-sm font-medium text-center text-gray-500">Email Template</button>
+            <button onclick="openTab('schedule')" id="tab-schedule"  class="tab-btn flex-1 py-2 rounded-xl text-sm font-medium text-center text-gray-500">Schedule</button>
+            <button onclick="openTab('settings')" id="tab-settings"  class="tab-btn flex-1 py-2 rounded-xl text-sm font-medium text-center text-gray-500">Settings</button>
+        </div>
+
+        <!-- Filters -->
+        <div id="tab-filters-content" class="p-6 space-y-5">
+            <p class="text-xs text-gray-400">Click to select. AutoReach finds people matching your selections on Apollo.</p>
+            <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Job Title</label><div id="chips-title" class="flex flex-wrap gap-2"></div></div>
+            <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Company / Firm</label><div id="chips-company" class="flex flex-wrap gap-2"></div></div>
+            <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">School</label><div id="chips-school" class="flex flex-wrap gap-2"></div></div>
+            <div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Location</label><div id="chips-location" class="flex flex-wrap gap-2"></div></div>
+            <div class="flex items-center gap-3 pt-2 border-t border-gray-50">
+                <button onclick="saveFilters()" class="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors">Save Filters</button>
+                <button onclick="clearChips()" class="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear all</button>
+                <span id="filters-ok" class="text-xs text-green-600 font-medium hidden">Saved!</span>
+            </div>
+        </div>
+
+        <!-- Template -->
+        <div id="tab-template-content" class="p-6 hidden space-y-4">
+            <div class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2">Placeholders — filled in automatically per person</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="bg-white border border-violet-200 text-violet-700 text-xs px-2.5 py-1 rounded-lg font-mono">{first_name}</span>
+                    <span class="bg-white border border-violet-200 text-violet-700 text-xs px-2.5 py-1 rounded-lg font-mono">{last_name}</span>
+                    <span class="bg-white border border-violet-200 text-violet-700 text-xs px-2.5 py-1 rounded-lg font-mono">{company}</span>
+                    <span class="bg-white border border-violet-200 text-violet-700 text-xs px-2.5 py-1 rounded-lg font-mono">{title}</span>
+                    <span class="bg-white border border-violet-200 text-violet-700 text-xs px-2.5 py-1 rounded-lg font-mono">{school}</span>
+                    <span class="bg-white border border-blue-200 text-blue-700 text-xs px-2.5 py-1 rounded-lg font-mono">{company_focus} ✦ AI</span>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Subject Line</label>
+                <input type="text" id="d-subject" placeholder="Student Interested in {company}"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Email Body</label>
+                <textarea id="d-body" rows="10"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed"></textarea>
+            </div>
+            <div class="flex items-center gap-3 pt-2 border-t border-gray-50">
+                <button onclick="saveTemplate()" class="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors">Save Template</button>
+                <span id="template-ok" class="text-xs text-green-600 font-medium hidden">Saved!</span>
+            </div>
+        </div>
+
+        <!-- Schedule -->
+        <div id="tab-schedule-content" class="p-6 hidden space-y-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-3">Emails per day</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" id="d-perday" min="1" max="20" value="5" style="accent-color:#7c3aed;" class="flex-1"
+                            oninput="document.getElementById('d-perday-val').textContent=this.value">
+                        <span id="d-perday-val" class="text-2xl font-bold text-gray-900 w-8 text-center">5</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Stay under 10/day for networking</p>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-3">Per company max</label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" id="d-perco" min="1" max="5" value="2" style="accent-color:#7c3aed;" class="flex-1"
+                            oninput="document.getElementById('d-perco-val').textContent=this.value">
+                        <span id="d-perco-val" class="text-2xl font-bold text-gray-900 w-8 text-center">2</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Max emails per company per day</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Daily send time</label>
+                    <input type="time" id="d-time" value="09:00"
+                        class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    <p class="text-xs text-gray-400 mt-1">Runs automatically every day at this time</p>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Total email limit</label>
+                    <input type="number" id="d-limit" placeholder="e.g. 100" min="1"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2 border-t border-gray-50">
+                <button onclick="saveSchedule()" class="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors">Save Schedule</button>
+                <span id="sched-ok" class="text-xs text-green-600 font-medium hidden">Saved!</span>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="tab-settings-content" class="p-6 hidden space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Your Name</label>
+                    <input type="text" id="d-name" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Gmail</label>
+                    <input type="email" id="d-gmail" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Gmail App Password</label>
+                    <input type="password" id="d-gmailpw" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Groq API Key <span class="text-gray-400 font-normal normal-case">(optional)</span></label>
+                    <input type="password" id="d-groq" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2 border-t border-gray-50">
+                <button onclick="saveSettings()" class="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-gray-700 transition-colors">Save Settings</button>
+                <span id="settings-ok" class="text-xs text-green-600 font-medium hidden">Saved!</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+            <h2 class="font-semibold text-gray-900">Activity Log</h2>
+            <button onclick="clearLog()" class="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-widest">Time</th>
+                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-widest">Name</th>
+                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-widest">Company</th>
+                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-widest">Email</th>
+                        <th class="text-left px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-widest">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="log-tbody">
+                    <tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 text-sm">No activity yet.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script>
+// ── Clerk setup ───────────────────────────────────────────────────────────────
+const CLERK_PUB_KEY = "{{ clerk_pub_key }}";
+let _clerk = null;
+let _token = null;   // cached JWT
+let _userId = null;  // our DB user id
+
+async function getToken() {
+    if (!_clerk?.session) return null;
+    _token = await _clerk.session.getToken();
+    return _token;
+}
+
+async function apiAuth(method, path, body) {
+    const tok = await getToken();
+    const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    return r.json();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+    buildChips();
+
+    _clerk = new window.Clerk(CLERK_PUB_KEY);
+    await _clerk.load();
+
+    if (!_clerk.user) {
+        // Mount Clerk sign-in UI
+        _clerk.mountSignIn(document.getElementById('clerk-mount'), {
+            appearance: {
+                variables: { colorPrimary: '#7c3aed' },
+            },
+        });
+        return;
+    }
+
+    // User is signed in — remove auth screen
+    document.getElementById('auth-screen').remove();
+
+    // Check if returning from Stripe
+    if (window.location.pathname === '/success' || window.location.search.includes('session_id')) {
+        showProcessing();
+        await waitForSubscription();
+        return;
+    }
+
+    await initDashboard();
+});
+
+async function initDashboard() {
+    const cu = _clerk.user;
+    const me = await apiAuth('POST', '/api/me', {
+        email: cu.primaryEmailAddress?.emailAddress || '',
+        name:  `${cu.firstName || ''} ${cu.lastName || ''}`.trim(),
+    });
+
+    _userId = me.user_id;
+
+    if (!me.subscribed) {
+        showPaywall();
+        return;
+    }
+
+    const cfg = me.config || {};
+    if (!cfg.gmail || !cfg.sender_name) {
+        showSetup(me);
+        return;
+    }
+
+    showDashboard(me);
+}
+
+// ── Screen transitions ────────────────────────────────────────────────────────
+
+function showPaywall() {
+    const p = document.getElementById('paywall-screen');
+    p.classList.remove('hidden');
+    p.classList.add('flex');
+}
+
+function showProcessing() {
+    const p = document.getElementById('processing-screen');
+    p.classList.remove('hidden');
+    p.classList.add('flex');
+}
+
+function showSetup(me) {
+    // Pre-fill name from Clerk if available
+    const cu = _clerk.user;
+    document.getElementById('s-name').value  = `${cu.firstName || ''} ${cu.lastName || ''}`.trim();
+    document.getElementById('s-gmail').value = cu.primaryEmailAddress?.emailAddress || '';
+    const s = document.getElementById('setup-screen');
+    s.classList.remove('hidden');
+    s.classList.add('flex');
+}
+
+function showDashboard(me) {
+    document.getElementById('paywall-screen').classList.add('hidden');
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('processing-screen').classList.add('hidden');
+    populateDashboard(me);
+}
+
+async function waitForSubscription() {
+    for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const me = await apiAuth('POST', '/api/me', {
+            email: _clerk.user?.primaryEmailAddress?.emailAddress || '',
+            name:  `${_clerk.user?.firstName || ''} ${_clerk.user?.lastName || ''}`.trim(),
+        });
+        _userId = me.user_id;
+        if (me.subscribed) {
+            window.history.replaceState({}, '', '/');
+            document.getElementById('processing-screen').classList.add('hidden');
+            const cfg = me.config || {};
+            if (!cfg.gmail || !cfg.sender_name) {
+                showSetup(me);
+            } else {
+                showDashboard(me);
+            }
+            return;
+        }
+    }
+    // Timed out — redirect back
+    window.location.href = '/';
+}
+
+async function subscribe() {
+    const btn = document.getElementById('subscribe-btn');
+    btn.textContent = 'Redirecting...';
+    btn.disabled = true;
+    const res = await apiAuth('POST', '/api/subscribe');
+    if (res.url) window.location.href = res.url;
+    else { btn.textContent = 'Start Sending →'; btn.disabled = false; }
+}
+
+async function setupSubmit() {
+    const name   = document.getElementById('s-name').value.trim();
+    const gmail  = document.getElementById('s-gmail').value.trim();
+    const gmailpw= document.getElementById('s-gmailpw').value.trim();
+    const groq   = document.getElementById('s-groq').value.trim();
+    const err    = document.getElementById('setup-err');
+
+    if (!name)    { err.textContent='Name is required.';                err.classList.remove('hidden'); return; }
+    if (!gmail)   { err.textContent='Gmail is required.';              err.classList.remove('hidden'); return; }
+    if (!gmailpw) { err.textContent='Gmail App Password is required.'; err.classList.remove('hidden'); return; }
+
+    await apiAuth('POST', '/api/config', { name, gmail, gmailpw, groq });
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('setup-screen').classList.remove('flex');
+
+    const me = await apiAuth('POST', '/api/me', { email: gmail, name });
+    showDashboard(me);
+}
+
+function populateDashboard(me) {
+    const cfg  = me.config  || {};
+    const data = me.data    || {};
+
+    document.getElementById('hdr-name').textContent = cfg.sender_name || '';
+    document.getElementById('d-name').value   = cfg.sender_name || '';
+    document.getElementById('d-gmail').value  = cfg.gmail       || '';
+    document.getElementById('d-gmailpw').value= cfg.gmailpw     || '';
+    document.getElementById('d-groq').value   = cfg.groq_key    || '';
+
+    const t = data.template || {};
+    document.getElementById('d-subject').value = t.subject || '';
+    document.getElementById('d-body').value    = t.body    || '';
+
+    const s = data.schedule || {};
+    if (s.perday)       { document.getElementById('d-perday').value = s.perday; document.getElementById('d-perday-val').textContent = s.perday; }
+    if (s.per_company)  { document.getElementById('d-perco').value  = s.per_company; document.getElementById('d-perco-val').textContent = s.per_company; }
+    if (s.time)   document.getElementById('d-time').value  = s.time;
+    if (s.limit)  document.getElementById('d-limit').value = s.limit;
+
+    const f = data.filters || {};
+    Object.keys(sel).forEach(cat => {
+        const raw = f[cat] || '';
+        sel[cat] = (typeof raw === 'string' ? raw : '').split(',').map(v => v.trim()).filter(v => CHIPS[cat]?.includes(v));
+    });
+    buildChips();
+    renderScheduleInfo(s);
+    pollState();
+    refreshLog();
+}
+
+async function signOut() {
+    await _clerk.signOut();
+    window.location.href = '/';
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+const CHIPS = {
+    title:   ['Analyst','Associate','Vice President','Director','Managing Director','Summer Analyst','Summer Associate','Intern','Recruiter'],
+    company: ['Goldman Sachs','Morgan Stanley','JPMorgan','Bank of America','Citigroup','Barclays','Deutsche Bank','UBS','Lazard','Evercore','PJT Partners','Centerview Partners','Moelis & Company','Houlihan Lokey','Jefferies','Blackstone','KKR','Apollo Global Management','Carlyle Group','Warburg Pincus','Bain Capital','McKinsey','BCG','Bain','Deloitte','PwC','Google','Meta','Amazon','Microsoft','Apple','Stripe'],
+    school:  ['Harvard','Wharton (UPenn)','Columbia','NYU Stern','Booth (Chicago)','Kellogg (Northwestern)','Sloan (MIT)','Tuck (Dartmouth)','Ross (Michigan)','Darden (UVA)','Yale SOM','Princeton','Duke Fuqua','Cornell','Georgetown','UCLA Anderson','Berkeley Haas','Stanford GSB','UW-Madison'],
+    location:['New York','San Francisco','Chicago','Los Angeles','Boston','Washington DC','Houston','Miami','London','Hong Kong'],
+};
+const sel = { title:[], company:[], school:[], location:[] };
+
+function buildChips() {
+    Object.entries(CHIPS).forEach(([cat, opts]) => {
+        const wrap = document.getElementById(`chips-${cat}`);
+        if (!wrap) return;
+        wrap.innerHTML = '';
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = opt;
+            btn.className = chipCls(sel[cat].includes(opt));
+            btn.onclick = () => {
+                const i = sel[cat].indexOf(opt);
+                if (i === -1) sel[cat].push(opt); else sel[cat].splice(i, 1);
+                btn.className = chipCls(sel[cat].includes(opt));
+            };
+            wrap.appendChild(btn);
+        });
+    });
+}
+
+function chipCls(active) {
+    return active
+        ? 'px-3 py-1.5 rounded-full text-xs font-medium border transition-all bg-gray-900 border-gray-900 text-white'
+        : 'px-3 py-1.5 rounded-full text-xs font-medium border transition-all bg-white border-gray-200 text-gray-600 hover:border-gray-400';
+}
+
+function clearChips() {
+    Object.keys(sel).forEach(k => sel[k] = []);
+    buildChips();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function openTab(name) {
+    ['filters','template','schedule','settings'].forEach(t => {
+        document.getElementById(`tab-${t}-content`).classList.toggle('hidden', t !== name);
+        const btn = document.getElementById(`tab-${t}`);
+        if (t === name) { btn.classList.add('active'); btn.classList.remove('text-gray-500'); }
+        else            { btn.classList.remove('active'); btn.classList.add('text-gray-500'); }
+    });
+}
+
+// ── Save helpers ──────────────────────────────────────────────────────────────
+async function saveFilters() {
+    const f = {};
+    Object.keys(sel).forEach(cat => { f[cat] = sel[cat].join(', '); });
+    await apiAuth('POST', '/api/data', { filters: f });
+    flash('filters-ok');
+}
+
+async function saveTemplate() {
+    await apiAuth('POST', '/api/data', {
+        template: {
+            subject: document.getElementById('d-subject').value.trim(),
+            body:    document.getElementById('d-body').value.trim(),
+        },
+    });
+    flash('template-ok');
+}
+
+async function saveSchedule() {
+    const s = {
+        perday:      parseInt(document.getElementById('d-perday').value),
+        per_company: parseInt(document.getElementById('d-perco').value),
+        time:        document.getElementById('d-time').value,
+        limit:       parseInt(document.getElementById('d-limit').value) || 0,
+    };
+    await apiAuth('POST', '/api/data', { schedule: s });
+    renderScheduleInfo(s);
+    flash('sched-ok');
+}
+
+async function saveSettings() {
+    await apiAuth('POST', '/api/config', {
+        name:    document.getElementById('d-name').value.trim(),
+        gmail:   document.getElementById('d-gmail').value.trim(),
+        gmailpw: document.getElementById('d-gmailpw').value.trim(),
+        groq:    document.getElementById('d-groq').value.trim(),
+    });
+    document.getElementById('hdr-name').textContent = document.getElementById('d-name').value.trim();
+    flash('settings-ok');
+}
+
+// ── Campaign ──────────────────────────────────────────────────────────────────
+async function startCampaign(dryRun) {
+    const out = document.getElementById('campaign-output');
+    out.innerHTML = '';
+    document.getElementById('campaign-terminal').classList.remove('hidden');
+    document.getElementById('btn-start').classList.add('hidden');
+    document.getElementById('btn-dryrun').classList.add('hidden');
+    document.getElementById('btn-stop').classList.remove('hidden');
+
+    const res = await apiAuth('POST', '/api/run', { dry_run: dryRun });
+    if (res.error) {
+        alert(res.error);
+        document.getElementById('btn-stop').classList.add('hidden');
+        document.getElementById('btn-start').classList.remove('hidden');
+        document.getElementById('btn-dryrun').classList.remove('hidden');
+        return;
+    }
+
+    const tok = await getToken();
+    const es  = new EventSource(`/api/stream?token=${encodeURIComponent(tok)}`);
+    es.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        if (d.done) {
+            es.close();
+            refreshLog();
+            pollState();
+            document.getElementById('btn-stop').classList.add('hidden');
+            document.getElementById('btn-start').classList.remove('hidden');
+            document.getElementById('btn-dryrun').classList.remove('hidden');
+            return;
+        }
+        const line = document.createElement('div');
+        line.textContent = `[${d.ts}] ${d.msg}`;
+        line.className = d.level === 'error' ? 'text-red-400' : d.level === 'success' ? 'text-green-400' : d.level === 'warn' ? 'text-amber-400' : 'text-gray-400';
+        out.appendChild(line);
+        out.scrollTop = out.scrollHeight;
+        pollState();
+    };
+}
+
+async function stopCampaign() {
+    await apiAuth('POST', '/api/stop');
+    document.getElementById('btn-stop').classList.add('hidden');
+    document.getElementById('btn-start').classList.remove('hidden');
+    document.getElementById('btn-dryrun').classList.remove('hidden');
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+async function pollState() {
+    const s    = await apiAuth('GET', '/api/state');
+    const data = await apiAuth('GET', '/api/data');
+    document.getElementById('stat-sent').textContent   = s.sent       || 0;
+    document.getElementById('stat-today').textContent  = s.sent_today || 0;
+    document.getElementById('sched-today').textContent = s.sent_today || 0;
+    const limit = data.schedule?.limit || 0;
+    document.getElementById('stat-remaining').textContent = limit ? Math.max(0, limit - (s.sent || 0)) : '—';
+    const log  = await apiAuth('GET', '/api/log');
+    const companies = new Set((log || []).map(r => r.company).filter(Boolean));
+    document.getElementById('stat-companies').textContent = companies.size;
+}
+
+function renderScheduleInfo(s) {
+    if (!s?.perday) return;
+    document.getElementById('schedule-row').classList.remove('hidden');
+    document.getElementById('sched-perday').textContent = `${s.perday}/day`;
+    document.getElementById('sched-perco').textContent  = `${s.per_company || 2}/co`;
+    const [h, m] = (s.time || '09:00').split(':').map(Number);
+    document.getElementById('sched-time').textContent = `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+async function refreshLog() {
+    const rows  = await apiAuth('GET', '/api/log');
+    const tbody = document.getElementById('log-tbody');
+    if (!rows?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 text-sm">No activity yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr class="hover:bg-gray-50/50 fade-in">
+            <td class="px-6 py-3.5 text-gray-400 text-xs whitespace-nowrap">${(r.timestamp||'').replace('T',' ').slice(0,16)}</td>
+            <td class="px-6 py-3.5 text-gray-800 font-medium">${r.name||''}</td>
+            <td class="px-6 py-3.5 text-gray-500 text-sm">${r.company||''}</td>
+            <td class="px-6 py-3.5 text-gray-500 text-xs">${r.email||''}</td>
+            <td class="px-6 py-3.5"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${r.status==='sent'?'bg-green-50 text-green-700':r.status==='dry-run'?'bg-blue-50 text-blue-700':'bg-red-50 text-red-600'}">${r.status}</span></td>
+        </tr>`).join('');
+}
+
+async function clearLog() {
+    await apiAuth('POST', '/api/log/clear');
+    refreshLog();
+    pollState();
+}
+
+function flash(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+// ── SSE token passthrough ─────────────────────────────────────────────────────
+// EventSource can't set headers, so we pass the token as a query param
+// and read it in the stream route
+</script>
+</body>
+</html>
