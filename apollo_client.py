@@ -2,7 +2,7 @@ import requests
 
 
 def search_contacts(api_key, filters, page=1, per_page=25):
-    body = {"api_key": api_key, "page": page, "per_page": per_page}
+    body = {"page": page, "per_page": per_page}
 
     if filters.get("title"):
         body["person_titles"] = [t.strip() for t in filters["title"].split(",") if t.strip()]
@@ -16,7 +16,11 @@ def search_contacts(api_key, filters, page=1, per_page=25):
     resp = requests.post(
         "https://api.apollo.io/v1/mixed_people/search",
         json=body,
-        headers={"Content-Type": "application/json", "Cache-Control": "no-cache"},
+        headers={
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+            "x-api-key": api_key,
+        },
         timeout=15,
     )
     resp.raise_for_status()
