@@ -479,6 +479,28 @@ function showDashboard(me) {
 }
 
 async function waitForSubscription() {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+
+    // First try to verify directly via the session ID (bypasses webhook timing)
+    if (sessionId) {
+        try {
+            const v = await apiAuth('POST', '/api/verify-session', { session_id: sessionId });
+            if (v.subscribed) {
+                window.history.replaceState({}, '', '/');
+                document.getElementById('processing-screen').classList.add('hidden');
+                const me = await apiAuth('POST', '/api/me', {
+                    email: _clerk.user?.primaryEmailAddress?.emailAddress || '',
+                    name:  `${_clerk.user?.firstName || ''} ${_clerk.user?.lastName || ''}`.trim(),
+                });
+                _userId = me.user_id;
+                const cfg = me.config || {};
+                if (!cfg.gmail || !cfg.sender_name) { showSetup(me); } else { showDashboard(me); }
+                return;
+            }
+        } catch(e) {}
+    }
+
+    // Fallback: poll /api/me until subscribed (webhook may take a moment)
     for (let i = 0; i < 20; i++) {
         await new Promise(r => setTimeout(r, 2000));
         const me = await apiAuth('POST', '/api/me', {
@@ -490,11 +512,7 @@ async function waitForSubscription() {
             window.history.replaceState({}, '', '/');
             document.getElementById('processing-screen').classList.add('hidden');
             const cfg = me.config || {};
-            if (!cfg.gmail || !cfg.sender_name) {
-                showSetup(me);
-            } else {
-                showDashboard(me);
-            }
+            if (!cfg.gmail || !cfg.sender_name) { showSetup(me); } else { showDashboard(me); }
             return;
         }
     }

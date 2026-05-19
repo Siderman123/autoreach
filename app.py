@@ -289,6 +289,27 @@ def api_stream():
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
 
+@app.route("/api/verify-session", methods=["POST"])
+@require_auth
+def api_verify_session():
+    """Fallback: verify a Stripe checkout session directly and activate subscription."""
+    session_id = (request.json or {}).get("session_id", "")
+    if not session_id:
+        return jsonify({"error": "No session_id"}), 400
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status in ("paid", "no_payment_required") and session.status == "complete":
+            clerk_id = session.get("client_reference_id") or (session.get("metadata") or {}).get("clerk_user_id")
+            if not clerk_id:
+                clerk_id = g.clerk_user_id
+            DB.set_subscription(clerk_id, True,
+                                stripe_customer_id=session.get("customer"),
+                                stripe_subscription_id=session.get("subscription"))
+            return jsonify({"ok": True, "subscribed": True})
+        return jsonify({"ok": True, "subscribed": False})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/subscribe", methods=["POST"])
 @require_auth
 def api_subscribe():
