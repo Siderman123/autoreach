@@ -462,6 +462,11 @@ function showProcessing() {
 }
 
 function showSetup(me) {
+    // Hide paywall and processing first
+    document.getElementById('paywall-screen').classList.add('hidden');
+    document.getElementById('paywall-screen').classList.remove('flex');
+    document.getElementById('processing-screen').classList.add('hidden');
+    document.getElementById('processing-screen').classList.remove('flex');
     // Pre-fill name from Clerk if available
     const cu = _clerk.user;
     document.getElementById('s-name').value  = `${cu.firstName || ''} ${cu.lastName || ''}`.trim();
