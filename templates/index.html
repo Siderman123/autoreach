@@ -485,43 +485,41 @@ function showDashboard(me) {
 
 async function waitForSubscription() {
     const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    const email = _clerk.user?.primaryEmailAddress?.emailAddress || '';
+    const name  = `${_clerk.user?.firstName || ''} ${_clerk.user?.lastName || ''}`.trim();
 
-    // First try to verify directly via the session ID (bypasses webhook timing)
-    if (sessionId) {
+    function activate(me) {
+        window.history.replaceState({}, '', '/');
+        document.getElementById('processing-screen').classList.add('hidden');
+        document.getElementById('paywall-screen').classList.add('hidden');
+        document.getElementById('paywall-screen').classList.remove('flex');
+        const cfg = (me && me.config) || {};
+        if (!cfg.gmail || !cfg.sender_name) { showSetup(me); } else { showDashboard(me); }
+    }
+
+    for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Try direct session verification on every iteration
+        if (sessionId) {
+            try {
+                const v = await apiAuth('POST', '/api/verify-session', { session_id: sessionId });
+                if (v.subscribed) {
+                    const me = await apiAuth('POST', '/api/me', { email, name });
+                    _userId = me.user_id;
+                    activate(me);
+                    return;
+                }
+            } catch(e) {}
+        }
+
+        // Also check /api/me (handles webhook-activated subscriptions)
         try {
-            const v = await apiAuth('POST', '/api/verify-session', { session_id: sessionId });
-            if (v.subscribed) {
-                window.history.replaceState({}, '', '/');
-                document.getElementById('processing-screen').classList.add('hidden');
-                const me = await apiAuth('POST', '/api/me', {
-                    email: _clerk.user?.primaryEmailAddress?.emailAddress || '',
-                    name:  `${_clerk.user?.firstName || ''} ${_clerk.user?.lastName || ''}`.trim(),
-                });
-                _userId = me.user_id;
-                const cfg = me.config || {};
-                if (!cfg.gmail || !cfg.sender_name) { showSetup(me); } else { showDashboard(me); }
-                return;
-            }
+            const me = await apiAuth('POST', '/api/me', { email, name });
+            _userId = me.user_id;
+            if (me.subscribed) { activate(me); return; }
         } catch(e) {}
     }
-
-    // Fallback: poll /api/me until subscribed (webhook may take a moment)
-    for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 2000));
-        const me = await apiAuth('POST', '/api/me', {
-            email: _clerk.user?.primaryEmailAddress?.emailAddress || '',
-            name:  `${_clerk.user?.firstName || ''} ${_clerk.user?.lastName || ''}`.trim(),
-        });
-        _userId = me.user_id;
-        if (me.subscribed) {
-            window.history.replaceState({}, '', '/');
-            document.getElementById('processing-screen').classList.add('hidden');
-            const cfg = me.config || {};
-            if (!cfg.gmail || !cfg.sender_name) { showSetup(me); } else { showDashboard(me); }
-            return;
-        }
-    }
-    // Timed out — redirect back
     window.location.href = '/';
 }
 
